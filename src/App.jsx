@@ -10,6 +10,7 @@ function App() {
   const [session, setSession] = useState(null);
   const [errorMsg, setErrorMsg] = useState("");
   const [imageFile, setImageFile] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
 
   const [form, setForm] = useState({
     name: "",
@@ -22,12 +23,10 @@ function App() {
   const fetchProducts = async () => {
     const { data, error } = await supabase
       .from("products")
-      .select(
-        `
+      .select(`
         *,
         categories(name)
-      `
-      )
+      `)
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -107,11 +106,11 @@ function App() {
     }
 
     const fileExt = imageFile.name.split(".").pop();
-    const fileName = `${session.user.id}/${Date.now()}.${fileExt}`;
+    const filePath = `${session.user.id}/${Date.now()}-${crypto.randomUUID()}.${fileExt}`;
 
     const { error: uploadError } = await supabase.storage
       .from("products")
-      .upload(fileName, imageFile);
+      .upload(filePath, imageFile);
 
     if (uploadError) {
       console.error(uploadError);
@@ -121,7 +120,7 @@ function App() {
 
     const { data: publicUrlData } = supabase.storage
       .from("products")
-      .getPublicUrl(fileName);
+      .getPublicUrl(filePath);
 
     const imageUrl = publicUrlData.publicUrl;
 
@@ -131,6 +130,7 @@ function App() {
         description: form.description,
         price: parseFloat(form.price),
         image_url: imageUrl,
+        storage_path: filePath,
         link: form.link,
         category_id: form.category_id,
         user_id: session.user.id,
@@ -139,6 +139,10 @@ function App() {
 
     if (error) {
       console.error(error);
+
+      // Try to clean up uploaded image if DB insert fails
+      await supabase.storage.from("products").remove([filePath]);
+
       setErrorMsg(error.message);
       return;
     }
@@ -150,14 +154,56 @@ function App() {
       link: "",
       category_id: "",
     });
-
     setImageFile(null);
+    setErrorMsg("");
     fetchProducts();
+  };
+
+  const handleDeleteProduct = async (product) => {
+    if (!session?.user) {
+      setErrorMsg("You must be logged in to delete products.");
+      return;
+    }
+
+    const confirmed = window.confirm(`Delete "${product.name}"?`);
+    if (!confirmed) return;
+
+    setDeletingId(product.id);
+    setErrorMsg("");
+
+    try {
+      if (product.storage_path) {
+        const { error: storageError } = await supabase.storage
+          .from("products")
+          .remove([product.storage_path]);
+
+        if (storageError) {
+          console.error(storageError);
+          throw storageError;
+        }
+      }
+
+      const { error: deleteError } = await supabase
+        .from("products")
+        .delete()
+        .eq("id", product.id);
+
+      if (deleteError) {
+        console.error(deleteError);
+        throw deleteError;
+      }
+
+      setProducts((prev) => prev.filter((p) => p.id !== product.id));
+    } catch (error) {
+      setErrorMsg(error.message || "Failed to delete product.");
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   const handleProductClick = (product) => {
     if (product.link) {
-      window.open(product.link, "_blank");
+      window.open(product.link, "_blank", "noopener,noreferrer");
     }
   };
 
@@ -244,6 +290,7 @@ function App() {
               type="file"
               accept="image/*"
               onChange={handleFileChange}
+              required
             />
 
             <select
@@ -279,37 +326,53 @@ function App() {
         {products.map((p) => (
           <div
             key={p.id}
-            onClick={() => handleProductClick(p)}
             style={{
               border: "1px solid #444",
               padding: "16px",
               borderRadius: "10px",
-              cursor: p.link ? "pointer" : "default",
             }}
           >
-            <img
-              src={p.image_url || "https://via.placeholder.com/200"}
-              alt={p.name}
-              onError={(e) => {
-                e.currentTarget.src = "https://via.placeholder.com/200";
-              }}
+            <div
+              onClick={() => handleProductClick(p)}
               style={{
-                width: "200px",
-                maxWidth: "100%",
-                borderRadius: "8px",
-                marginBottom: "10px",
-                display: "block",
+                cursor: p.link ? "pointer" : "default",
               }}
-            />
+            >
+              <img
+                src={p.image_url || "https://via.placeholder.com/200"}
+                alt={p.name}
+                onError={(e) => {
+                  e.currentTarget.src = "https://via.placeholder.com/200";
+                }}
+                style={{
+                  width: "200px",
+                  maxWidth: "100%",
+                  borderRadius: "8px",
+                  marginBottom: "10px",
+                  display: "block",
+                }}
+              />
 
-            <h3>{p.name}</h3>
-            <p>{p.description}</p>
-            <p>
-              <strong>Price:</strong> {p.price} MAD
-            </p>
-            <p>
-              <strong>Category:</strong> {p.categories?.name || "No category"}
-            </p>
+              <h3>{p.name}</h3>
+              <p>{p.description}</p>
+              <p>
+                <strong>Price:</strong> {p.price} MAD
+              </p>
+              <p>
+                <strong>Category:</strong> {p.categories?.name || "No category"}
+              </p>
+            </div>
+
+            {session && (
+              <div style={{ marginTop: "12px" }}>
+                <button
+                  onClick={() => handleDeleteProduct(p)}
+                  disabled={deletingId === p.id}
+                >
+                  {deletingId === p.id ? "Deleting..." : "Delete"}
+                </button>
+              </div>
+            )}
           </div>
         ))}
       </div>
