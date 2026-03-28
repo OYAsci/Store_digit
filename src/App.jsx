@@ -9,12 +9,12 @@ function App() {
   const [categories, setCategories] = useState([]);
   const [session, setSession] = useState(null);
   const [errorMsg, setErrorMsg] = useState("");
+  const [imageFile, setImageFile] = useState(null);
 
   const [form, setForm] = useState({
     name: "",
     description: "",
     price: "",
-    image_url: "",
     link: "",
     category_id: "",
   });
@@ -22,10 +22,12 @@ function App() {
   const fetchProducts = async () => {
     const { data, error } = await supabase
       .from("products")
-      .select(`
+      .select(
+        `
         *,
         categories(name)
-      `)
+      `
+      )
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -73,6 +75,11 @@ function App() {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0] || null;
+    setImageFile(file);
+  };
+
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
 
@@ -94,12 +101,36 @@ function App() {
       return;
     }
 
+    if (!imageFile) {
+      setErrorMsg("Please select an image.");
+      return;
+    }
+
+    const fileExt = imageFile.name.split(".").pop();
+    const fileName = `${session.user.id}/${Date.now()}.${fileExt}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("products")
+      .upload(fileName, imageFile);
+
+    if (uploadError) {
+      console.error(uploadError);
+      setErrorMsg(uploadError.message);
+      return;
+    }
+
+    const { data: publicUrlData } = supabase.storage
+      .from("products")
+      .getPublicUrl(fileName);
+
+    const imageUrl = publicUrlData.publicUrl;
+
     const { error } = await supabase.from("products").insert([
       {
         name: form.name,
         description: form.description,
         price: parseFloat(form.price),
-        image_url: form.image_url,
+        image_url: imageUrl,
         link: form.link,
         category_id: form.category_id,
         user_id: session.user.id,
@@ -116,11 +147,11 @@ function App() {
       name: "",
       description: "",
       price: "",
-      image_url: "",
       link: "",
       category_id: "",
     });
 
+    setImageFile(null);
     fetchProducts();
   };
 
@@ -203,17 +234,16 @@ function App() {
             />
 
             <input
-              name="image_url"
-              placeholder="Image URL"
-              value={form.image_url}
-              onChange={handleChange}
-            />
-
-            <input
               name="link"
               placeholder="Product link (https://...)"
               value={form.link}
               onChange={handleChange}
+            />
+
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleFileChange}
             />
 
             <select
