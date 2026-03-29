@@ -22,4 +22,7 @@ i18n
     },
   })
 
+document.documentElement.lang = savedLanguage
+document.documentElement.dir = savedLanguage === 'ar' ? 'rtl' : 'ltr'
+
 export default i18n
