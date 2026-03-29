@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { supabase } from "../lib/supabaseClient";
+import LanguageSwitcher from "./LanguageSwitcher";
 
 function App() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -96,12 +99,12 @@ function App() {
     setErrorMsg("");
 
     if (!session?.user) {
-      setErrorMsg("You must be logged in to add products.");
+      setErrorMsg(t("loginRequiredAdd"));
       return;
     }
 
     if (!imageFile) {
-      setErrorMsg("Please select an image.");
+      setErrorMsg(t("pleaseSelectImage"));
       return;
     }
 
@@ -139,10 +142,7 @@ function App() {
 
     if (error) {
       console.error(error);
-
-      // Try to clean up uploaded image if DB insert fails
       await supabase.storage.from("products").remove([filePath]);
-
       setErrorMsg(error.message);
       return;
     }
@@ -161,11 +161,11 @@ function App() {
 
   const handleDeleteProduct = async (product) => {
     if (!session?.user) {
-      setErrorMsg("You must be logged in to delete products.");
+      setErrorMsg(t("loginRequiredDelete"));
       return;
     }
 
-    const confirmed = window.confirm(`Delete "${product.name}"?`);
+    const confirmed = window.confirm(t("deleteConfirm", { name: product.name }));
     if (!confirmed) return;
 
     setDeletingId(product.id);
@@ -195,7 +195,7 @@ function App() {
 
       setProducts((prev) => prev.filter((p) => p.id !== product.id));
     } catch (error) {
-      setErrorMsg(error.message || "Failed to delete product.");
+      setErrorMsg(error.message || t("deleteFailed"));
     } finally {
       setDeletingId(null);
     }
@@ -212,16 +212,19 @@ function App() {
       <div
         style={{
           display: "flex",
-          justifyContent: "flex-end",
+          justifyContent: "space-between",
           alignItems: "center",
           gap: "10px",
           marginBottom: "10px",
+          flexWrap: "wrap",
         }}
       >
+        <LanguageSwitcher />
+
         {!session ? (
           <button
             onClick={() => navigate("/login")}
-            title="Login"
+            title={t("login")}
             style={{
               fontSize: "22px",
               padding: "8px 12px",
@@ -231,18 +234,18 @@ function App() {
             👤
           </button>
         ) : (
-          <>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
             <span style={{ fontSize: "14px" }}>{session.user.email}</span>
-            <button onClick={handleLogout}>Logout</button>
-          </>
+            <button onClick={handleLogout}>{t("logout")}</button>
+          </div>
         )}
       </div>
 
-      <h1 style={{ textAlign: "center" }}>Store Digit</h1>
+      <h1 style={{ textAlign: "center" }}>{t("storeTitle")}</h1>
 
       {session && (
         <div style={{ marginBottom: "30px" }}>
-          <h2 style={{ textAlign: "center" }}>Admin panel</h2>
+          <h2 style={{ textAlign: "center" }}>{t("adminPanel")}</h2>
 
           <form
             onSubmit={handleSubmit}
@@ -255,7 +258,7 @@ function App() {
           >
             <input
               name="name"
-              placeholder="Product name"
+              placeholder={t("productName")}
               value={form.name}
               onChange={handleChange}
               required
@@ -263,7 +266,7 @@ function App() {
 
             <textarea
               name="description"
-              placeholder="Description"
+              placeholder={t("description")}
               value={form.description}
               onChange={handleChange}
               rows={4}
@@ -273,7 +276,7 @@ function App() {
               name="price"
               type="number"
               step="0.01"
-              placeholder="Price"
+              placeholder={t("price")}
               value={form.price}
               onChange={handleChange}
               required
@@ -281,7 +284,7 @@ function App() {
 
             <input
               name="link"
-              placeholder="Product link (https://...)"
+              placeholder={t("productLink")}
               value={form.link}
               onChange={handleChange}
             />
@@ -291,6 +294,7 @@ function App() {
               accept="image/*"
               onChange={handleFileChange}
               required
+              aria-label={t("selectImage")}
             />
 
             <select
@@ -299,7 +303,7 @@ function App() {
               onChange={handleChange}
               required
             >
-              <option value="">Select category</option>
+              <option value="">{t("selectCategory")}</option>
               {categories.map((cat) => (
                 <option key={cat.id} value={cat.id}>
                   {cat.name}
@@ -307,7 +311,7 @@ function App() {
               ))}
             </select>
 
-            <button type="submit">Add Product</button>
+            <button type="submit">{t("addProduct")}</button>
           </form>
         </div>
       )}
@@ -320,7 +324,7 @@ function App() {
 
       <hr />
 
-      <h2 style={{ textAlign: "center" }}>Products</h2>
+      <h2 style={{ textAlign: "center" }}>{t("products")}</h2>
 
       <div style={{ display: "grid", gap: "20px" }}>
         {products.map((p) => (
@@ -356,10 +360,11 @@ function App() {
               <h3>{p.name}</h3>
               <p>{p.description}</p>
               <p>
-                <strong>Price:</strong> {p.price} MAD
+                <strong>{t("price")}:</strong> {p.price} MAD
               </p>
               <p>
-                <strong>Category:</strong> {p.categories?.name || "No category"}
+                <strong>{t("category")}:</strong>{" "}
+                {p.categories?.name || t("noCategory")}
               </p>
             </div>
 
@@ -369,7 +374,7 @@ function App() {
                   onClick={() => handleDeleteProduct(p)}
                   disabled={deletingId === p.id}
                 >
-                  {deletingId === p.id ? "Deleting..." : "Delete"}
+                  {deletingId === p.id ? t("deleting") : t("delete")}
                 </button>
               </div>
             )}

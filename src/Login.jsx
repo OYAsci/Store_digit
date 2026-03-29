@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { supabase } from "../lib/supabaseClient";
+import LanguageSwitcher from "./LanguageSwitcher";
 
 function Login() {
   const [form, setForm] = useState({
@@ -9,6 +11,7 @@ function Login() {
   });
   const [errorMsg, setErrorMsg] = useState("");
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -41,7 +44,17 @@ function Login() {
 
   return (
     <div style={{ padding: "20px", maxWidth: "500px", margin: "40px auto" }}>
-      <h1 style={{ textAlign: "center" }}>Admin Login</h1>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "flex-end",
+          marginBottom: "20px",
+        }}
+      >
+        <LanguageSwitcher />
+      </div>
+
+      <h1 style={{ textAlign: "center" }}>{t("adminLogin")}</h1>
 
       <form
         onSubmit={handleLogin}
@@ -50,7 +63,7 @@ function Login() {
         <input
           name="email"
           type="email"
-          placeholder="Email"
+          placeholder={t("email")}
           value={form.email}
           onChange={handleChange}
           required
@@ -59,13 +72,13 @@ function Login() {
         <input
           name="password"
           type="password"
-          placeholder="Password"
+          placeholder={t("password")}
           value={form.password}
           onChange={handleChange}
           required
         />
 
-        <button type="submit">Login</button>
+        <button type="submit">{t("login")}</button>
       </form>
 
       {errorMsg && (
