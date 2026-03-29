@@ -2,7 +2,7 @@
  * App.jsx
  *
  * Features:
- *  - Location verification gate (timezone + IP + GPS must agree)
+ *  - Automatic IP-based language selection
  *  - 5 color themes with dot-picker, persisted to localStorage
  *  - Fully responsive grid layout (mobile → desktop)
  *  - Supabase auth, product CRUD, image upload
@@ -13,8 +13,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { supabase } from "../lib/supabaseClient";
-import LanguageSwitcher from "./LanguageSwitcher";
-import LocationGate from "./LocationGate";
+import { detectAndApplyLanguageFromIP } from "./ipLanguage";
 
 // ─── Themes ──────────────────────────────────────────────────────────────────
 
@@ -453,6 +452,10 @@ function StoreApp() {
     localStorage.setItem("store-theme", theme);
   }, [theme]);
 
+  useEffect(() => {
+    detectAndApplyLanguageFromIP();
+  }, []);
+
   const fetchProducts = async () => {
     const { data, error } = await supabase
       .from("products")
@@ -562,7 +565,6 @@ function StoreApp() {
           {/* ── Header ── */}
           <header className="store-header">
             <div className="header-left">
-              <LanguageSwitcher />
               <ThemePicker current={theme} onChange={setTheme} />
             </div>
             <div className="header-right">
@@ -705,12 +707,8 @@ function StoreApp() {
   );
 }
 
-// ─── Default export: gate wraps the store ────────────────────────────────────
+// ─── Default export ───────────────────────────────────────────────────────────
 
 export default function App() {
-  return (
-    <LocationGate strict={false}>
-      <StoreApp />
-    </LocationGate>
-  );
+  return <StoreApp />;
 }

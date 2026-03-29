@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { supabase } from "../lib/supabaseClient";
-import LanguageSwitcher from "./LanguageSwitcher";
+import { detectAndApplyLanguageFromIP } from "./ipLanguage";
 
 function Login() {
   const [form, setForm] = useState({
@@ -14,6 +14,7 @@ function Login() {
   const { t } = useTranslation();
 
   useEffect(() => {
+    detectAndApplyLanguageFromIP();
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) {
         navigate("/");
@@ -44,16 +45,6 @@ function Login() {
 
   return (
     <div style={{ padding: "20px", maxWidth: "500px", margin: "40px auto" }}>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "flex-end",
-          marginBottom: "20px",
-        }}
-      >
-        <LanguageSwitcher />
-      </div>
-
       <h1 style={{ textAlign: "center" }}>{t("adminLogin")}</h1>
 
       <form

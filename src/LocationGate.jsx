@@ -9,12 +9,11 @@
  *   import LocationGate from "./LocationGate";
  *
  *   // In main.jsx or directly in App.jsx render:
- *   <LocationGate strict={false}>
+ *   <LocationGate>
  *     <YourApp />
  *   </LocationGate>
  *
  * Props:
- *   strict   {boolean}  false = 2-of-3 signals (default), true = all must agree
  *   children {ReactNode} content to render when access is granted
  */
 
@@ -223,12 +222,8 @@ function SignalRow({ emoji, label, signal }) {
   } else if (signal.available === true) {
     indicatorClass = "sig-ok";
     indicatorIcon  = "✓";
-    if (signal.source === "timezone") {
-      value = `${signal.tz}  →  ${signal.countryCode}`;
-    } else if (signal.source === "ip") {
+    if (signal.source === "ip") {
       value = `${signal.city}, ${signal.country} (${signal.countryCode})  ·  ${signal.ip}`;
-    } else if (signal.source === "gps") {
-      value = `${signal.lat.toFixed(5)}, ${signal.lon.toFixed(5)}  ·  ±${Math.round(signal.accuracy)} m`;
     }
   }
 
@@ -245,8 +240,8 @@ function SignalRow({ emoji, label, signal }) {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export default function LocationGate({ children, strict = false }) {
-  const { status, details, verify } = useLocationVerify({ strict });
+export default function LocationGate({ children }) {
+  const { status, details, verify } = useLocationVerify();
 
   // ── Granted: transparent pass-through ──────────────────────────────────────
   if (status === "granted") return <>{children}</>;
@@ -264,30 +259,16 @@ export default function LocationGate({ children, strict = false }) {
             <span className="lg-icon">🌍</span>
             <h1 className="lg-title">Location Verification</h1>
             <p className="lg-sub">
-              Before you continue, we need to verify your location using three
-              independent signals — your device timezone, IP address, and
-              optionally your GPS. All collected signals must agree.
+              Before you continue, we verify your location using your IP
+              address only. Your language will be selected automatically based
+              on the detected IP country.
             </p>
             <div className="lg-signals">
               <div className="lg-signal-row">
                 <div className="lg-signal-indicator sig-skip">–</div>
                 <div>
-                  <div className="lg-signal-label">🕐 Timezone</div>
-                  <div className="lg-signal-value">Read from browser — instant, no permission needed</div>
-                </div>
-              </div>
-              <div className="lg-signal-row">
-                <div className="lg-signal-indicator sig-skip">–</div>
-                <div>
                   <div className="lg-signal-label">🌐 IP Geolocation</div>
                   <div className="lg-signal-value">Looked up from your network address — no permission needed</div>
-                </div>
-              </div>
-              <div className="lg-signal-row">
-                <div className="lg-signal-indicator sig-skip">–</div>
-                <div>
-                  <div className="lg-signal-label">📍 GPS</div>
-                  <div className="lg-signal-value">Your browser will ask for permission — optional but strengthens verification</div>
                 </div>
               </div>
             </div>
@@ -310,21 +291,12 @@ export default function LocationGate({ children, strict = false }) {
             <div className="lg-spinner" />
             <h1 className="lg-title">Verifying your location…</h1>
             <p className="lg-sub">
-              Collecting signals in parallel. GPS may take up to 15 seconds —
-              please accept the browser permission prompt if it appears.
+              Checking your IP geolocation and applying language preferences.
             </p>
             <div className="lg-signals">
               <div className="lg-signal-row">
-                <div className="lg-signal-indicator sig-skip" style={{ animation: "lg-spin 1s linear infinite" }}>◌</div>
-                <div><div className="lg-signal-label">🕐 Timezone</div></div>
-              </div>
-              <div className="lg-signal-row">
                 <div className="lg-signal-indicator sig-skip" style={{ animation: "lg-spin 1.2s linear infinite" }}>◌</div>
                 <div><div className="lg-signal-label">🌐 IP Geolocation</div></div>
-              </div>
-              <div className="lg-signal-row">
-                <div className="lg-signal-indicator sig-skip" style={{ animation: "lg-spin 1.4s linear infinite" }}>◌</div>
-                <div><div className="lg-signal-label">📍 GPS</div></div>
               </div>
             </div>
             <button className="lg-btn" disabled>Checking…</button>
@@ -365,9 +337,7 @@ export default function LocationGate({ children, strict = false }) {
           </div>
 
           <div className="lg-signals">
-            <SignalRow emoji="🕐" label="Timezone"       signal={details?.timezone} />
             <SignalRow emoji="🌐" label="IP Geolocation" signal={details?.ip} />
-            <SignalRow emoji="📍" label="GPS"            signal={details?.gps} />
           </div>
 
           {(details?.agreements?.length > 0 || details?.conflicts?.length > 0 || details?.notes?.length > 0) && (
